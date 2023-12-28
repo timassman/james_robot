@@ -5,6 +5,7 @@
 
 from launch import LaunchDescription
 from launch.actions import IncludeLaunchDescription
+from launch_ros.actions import Node
 from launch_xml.launch_description_sources import XMLLaunchDescriptionSource
 import os
 from ament_index_python import get_package_share_directory
@@ -26,8 +27,16 @@ def generate_launch_description():
         )
     )
 
+    kinect1_node = Node(
+        package="kinect_ros2",
+        executable="kinect_ros2_node",
+        name="kinect_ros2",
+        namespace="kinect",
+    )
+
     ld.add_action(create_bringup)
     ld.add_action(joy_teleop)
+    ld.add_action(kinect1_node)
 
     return ld
 
