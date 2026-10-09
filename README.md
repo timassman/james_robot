@@ -40,9 +40,14 @@ Power the arm first: 12 V supply + switch on the controller board.
 
 ```bash
 docker exec -it robojames bash
-# Testing a synced version? Build and source it first, see Development workflow below
+source ~/git/james_robot/install/local_setup.bash
 ros2 launch james_bringup arm.launch.py
 ```
+
+The `source` selects the synced build (see Development workflow below). It is needed
+until the next image build: the current image (2026-05-17) predates `arm.launch.py`, so
+without it `ros2 launch` reports that `arm.launch.py` was not found in the share directory
+of `james_bringup`.
 
 Expected output: five Dynamixels (ID 11–15, XM430-W350) answer the ping, `Dynamixel Hardware
 Start!`, three controllers activated and `You can start planning now!`.
