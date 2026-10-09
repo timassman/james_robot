@@ -1,0 +1,59 @@
+<?xml version="1.0"?>
+<!--
+  James: beer crate with the OpenManipulator-X mounted on its front wall.
+  The crate is the root for now; the Roomba and the camera follow later.
+
+  Preview in RViz: ros2 launch james_description display.launch.py
+-->
+<robot name="james" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <!-- Preview options: a bottle in every slot, the wooden planks, a bottle in the gripper -->
+  <xacro:arg name="bottles" default="false"/>
+  <xacro:arg name="planks" default="true"/>
+  <xacro:arg name="held_bottle" default="false"/>
+
+  <!-- ros2_control: simulated arm (mock hardware) or the Dynamixels on the U2D2 port. use_sim
+       is read by the ROBOTIS ros2_control macro and stays false: no Gazebo here. -->
+  <xacro:arg name="use_fake_hardware" default="false"/>
+  <xacro:arg name="port_name" default="/dev/openmanipulator"/>
+  <xacro:arg name="use_sim" default="false"/>
+
+  <xacro:include filename="$(find open_manipulator_x_description)/urdf/materials.xacro"/>
+  <xacro:include filename="$(find open_manipulator_x_description)/urdf/open_manipulator_x.urdf.xacro"/>
+  <xacro:include filename="$(find open_manipulator_x_description)/ros2_control/open_manipulator_x_system.ros2_control.xacro"/>
+  <xacro:include filename="$(find james_description)/urdf/bottle.urdf.xacro"/>
+  <xacro:include filename="$(find james_description)/urdf/crate.urdf.xacro"/>
+
+  <!-- Arm mount (measured): bottom of the joint1 motor (link1 origin) 168 mm below the rim of
+       the crate, joint1 axis 145 mm from the left outer side (seen from the arm), back of the
+       joint1 motor 15 mm in front of the front wall. At joint1 = 0 the arm points away from
+       the crate. -->
+  <xacro:property name="arm_base_below_rim" value="0.168"/>
+  <xacro:property name="arm_axis_from_left" value="0.145"/>
+  <xacro:property name="arm_wall_gap" value="0.015"/>
+  <!-- From the back of the joint1 motor (XM430, 46.5 mm long) to the link1 origin -->
+  <xacro:property name="arm_motor_half_length" value="0.02325"/>
+
+  <xacro:james_crate bottles="$(arg bottles)" planks="$(arg planks)"/>
+
+  <xacro:open_manipulator_x prefix=""/>
+  <xacro:open_manipulator_x_system name="OpenManipulatorXSystem" prefix=""
+    port_name="$(arg port_name)" use_fake_hardware="$(arg use_fake_hardware)"/>
+
+  <joint name="arm_mount_joint" type="fixed">
+    <parent link="crate"/>
+    <child link="link1"/>
+    <origin
+      xyz="${-(crate_depth / 2 + arm_wall_gap + arm_motor_half_length)} ${crate_width / 2 - arm_axis_from_left} ${crate_height - arm_base_below_rim}"
+      rpy="0 0 ${pi}"/>
+  </joint>
+
+  <!-- Bottle held in a top-down grasp: bottle axis along the gripper, grip point at
+       end_effector_link -->
+  <xacro:if value="$(arg held_bottle)">
+    <xacro:james_bottle name="held_bottle" parent="end_effector_link">
+      <origin xyz="${bottle_height - bottle_grip_depth} 0 0" rpy="0 ${-pi / 2} 0"/>
+    </xacro:james_bottle>
+  </xacro:if>
+
+</robot>

@@ -4,8 +4,7 @@ ROS2 bringup and description for James robot
 | Package | Contents |
 |---|---|
 | `james_bringup` | Launch files to start the robot (arm, Roomba, sensors) |
-
-Planned: `james_description` — URDF of the robot itself (Roomba, crate, arm, camera).
+| `james_description` | URDF of the robot: beer crate with the arm (Roomba and camera to follow) |
 
 ## Repositories
 
@@ -14,6 +13,7 @@ The split follows the TurtleBot3 repositories:
 | Repository | Contents | Runs on | TurtleBot3 equivalent |
 |---|---|---|---|
 | [james_robot](https://github.com/timassman/james_robot) | Bringup and robot description | Jetson + laptop | `turtlebot3` |
+| [james_manipulation](https://github.com/timassman/james_manipulation) | MoveIt config and bottle picking | Jetson + laptop | `turtlebot3_manipulation` |
 | [james_perception](https://github.com/timassman/james_perception) | Bottle detection in the crate | Jetson | — |
 | [james_simulations](https://github.com/timassman/james_simulations) | Gazebo models and worlds | Laptop only | `turtlebot3_simulations` |
 | [james_docker](https://github.com/timassman/james_docker) | Docker image, container, Jetson setup | Jetson + laptop | — |
@@ -134,6 +134,25 @@ Replace `J1`, `J3`, `J4` with the current values; only `joint2` moves.
   `/joint_states` still runs at a stable 100 Hz
 - `error_timeout_ms parameter not found` — parameter name mismatch between ROBOTIS packages
 - Octomap `No 3D sensor plugin(s) defined` — no camera is connected to MoveIt (yet)
+
+---
+
+## Robot model (james_description)
+
+`james.urdf.xacro` combines the beer crate (boxes; the measurements are at the top of
+`crate.urdf.xacro`) with the arm. Slot frames are named `slot_r<row>c<col>`: seen from the arm
+looking into the crate, row 1 is nearest to the arm and column 1 is on the left.
+
+Check the model in RViz on the laptop:
+
+```bash
+source ~/ros2_ws3/install/setup.bash
+ros2 launch james_description display.launch.py                  # move the arm with sliders
+ros2 launch james_description display.launch.py use_gui:=false   # follow the real arm
+```
+
+Edits to the xacro files show up in RViz within a second. The preview runs in the `/preview`
+namespace with frame prefix `preview/`, so it does not interfere with the real arm.
 
 ---
 

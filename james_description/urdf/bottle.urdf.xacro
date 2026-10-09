@@ -1,0 +1,66 @@
+<?xml version="1.0"?>
+<!--
+  Bottle built from primitives, visual only: bottles are not part of the robot. Used to
+  preview reach and clearance in RViz. Frame at the centre of the bottom, z up.
+-->
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <!-- Dimensions in metres. "measured" = given by Tim, "assumed" = still to be checked. -->
+  <xacro:property name="bottle_height" value="0.210"/>         <!-- measured -->
+  <xacro:property name="bottle_cap_diameter" value="0.030"/>   <!-- measured -->
+  <xacro:property name="bottle_cap_height" value="0.015"/>     <!-- assumed -->
+  <xacro:property name="bottle_diameter" value="0.060"/>       <!-- measured -->
+  <xacro:property name="bottle_body_height" value="0.120"/>    <!-- assumed, bottom to shoulder -->
+  <xacro:property name="bottle_neck_diameter" value="0.026"/>  <!-- assumed -->
+  <!-- Distance from the top of the bottle down to the grip point (assumed) -->
+  <xacro:property name="bottle_grip_depth" value="0.010"/>
+
+  <material name="bottle_glass">
+    <color rgba="0.45 0.25 0.08 0.8"/>
+  </material>
+  <material name="bottle_cap">
+    <color rgba="0.95 0.85 0.10 1.0"/>
+  </material>
+
+  <!-- Body (cylinder), shoulder (sphere on top of the body), neck and cap (cylinders) -->
+  <xacro:macro name="james_bottle" params="name parent *origin">
+    <xacro:property name="neck_length"
+      value="${bottle_height - bottle_cap_height - bottle_body_height}"/>
+    <link name="${name}">
+      <visual>
+        <origin xyz="0 0 ${bottle_body_height / 2}" rpy="0 0 0"/>
+        <geometry>
+          <cylinder radius="${bottle_diameter / 2}" length="${bottle_body_height}"/>
+        </geometry>
+        <material name="bottle_glass"/>
+      </visual>
+      <visual>
+        <origin xyz="0 0 ${bottle_body_height}" rpy="0 0 0"/>
+        <geometry>
+          <sphere radius="${bottle_diameter / 2}"/>
+        </geometry>
+        <material name="bottle_glass"/>
+      </visual>
+      <visual>
+        <origin xyz="0 0 ${bottle_body_height + neck_length / 2}" rpy="0 0 0"/>
+        <geometry>
+          <cylinder radius="${bottle_neck_diameter / 2}" length="${neck_length}"/>
+        </geometry>
+        <material name="bottle_glass"/>
+      </visual>
+      <visual>
+        <origin xyz="0 0 ${bottle_height - bottle_cap_height / 2}" rpy="0 0 0"/>
+        <geometry>
+          <cylinder radius="${bottle_cap_diameter / 2}" length="${bottle_cap_height}"/>
+        </geometry>
+        <material name="bottle_cap"/>
+      </visual>
+    </link>
+    <joint name="${name}_joint" type="fixed">
+      <parent link="${parent}"/>
+      <child link="${name}"/>
+      <xacro:insert_block name="origin"/>
+    </joint>
+  </xacro:macro>
+
+</robot>

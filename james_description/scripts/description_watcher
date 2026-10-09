@@ -1,0 +1,85 @@
+#!/usr/bin/env python3
+"""Reload the robot model when a xacro file changes.
+
+Polls the modification times of the files next to the xacro file. On a change it re-runs
+xacro and sets the result as robot_description on robot_state_publisher, which then
+republishes the model (RViz reloads it) and its fixed transforms. Used by display.launch.py.
+
+With a --symlink-install build the installed files are links to the sources, so saving a
+file in the repository is enough.
+"""
+
+import os
+import signal
+import subprocess
+
+from rcl_interfaces.srv import SetParameters
+import rclpy
+from rclpy.executors import ExternalShutdownException
+from rclpy.node import Node
+from rclpy.parameter import Parameter
+
+
+class DescriptionWatcher(Node):
+
+    def __init__(self):
+        super().__init__('description_watcher')
+        self.xacro_file = self.declare_parameter('xacro_file', '').value
+        self.xacro_args = self.declare_parameter('xacro_args', '').value.split()
+        self.watch_dir = os.path.dirname(self.xacro_file)
+        self.client = self.create_client(SetParameters, 'robot_state_publisher/set_parameters')
+        self.mtimes = self.read_mtimes()
+        self.create_timer(1.0, self.check)
+        self.get_logger().info(f'Watching {self.watch_dir}')
+
+    def read_mtimes(self):
+        mtimes = {}
+        for name in os.listdir(self.watch_dir):
+            try:
+                mtimes[name] = os.stat(os.path.join(self.watch_dir, name)).st_mtime_ns
+            except FileNotFoundError:  # an editor is replacing the file
+                pass
+        return mtimes
+
+    def check(self):
+        mtimes = self.read_mtimes()
+        if mtimes == self.mtimes:
+            return
+        if not self.client.service_is_ready():
+            self.get_logger().warn('robot_state_publisher not available', throttle_duration_sec=10)
+            return
+        self.mtimes = mtimes
+
+        result = subprocess.run(
+            ['xacro', self.xacro_file] + self.xacro_args, capture_output=True, text=True)
+        if result.returncode != 0:
+            self.get_logger().error(
+                f'xacro failed, keeping the previous model:\n{result.stderr.strip()}')
+            return
+
+        request = SetParameters.Request(
+            parameters=[Parameter('robot_description', value=result.stdout).to_parameter_msg()])
+        self.client.call_async(request).add_done_callback(self.on_reloaded)
+
+    def on_reloaded(self, future):
+        result = future.result().results[0]
+        if result.successful:
+            self.get_logger().info('Model reloaded')
+        else:
+            self.get_logger().error(f'robot_state_publisher rejected the model: {result.reason}')
+
+
+def main():
+    rclpy.init()
+    node = DescriptionWatcher()
+    try:
+        rclpy.spin(node)
+    except (KeyboardInterrupt, ExternalShutdownException):
+        # Ctrl+C reaches this process twice (terminal and ros2 launch); ignore the second
+        signal.signal(signal.SIGINT, signal.SIG_IGN)
+    node.destroy_node()
+    rclpy.try_shutdown()
+
+
+if __name__ == '__main__':
+    main()

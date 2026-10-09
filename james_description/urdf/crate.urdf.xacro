@@ -1,0 +1,134 @@
+<?xml version="1.0"?>
+<!--
+  Beer crate for 12 bottles (3 rows x 4 columns), built from boxes.
+
+  Frame `crate`: origin at the centre of the outer bottom face,
+    x from the arm side into the crate (towards the back wall),
+    y to the left as seen from the arm, z up.
+
+  Slot frames `slot_r<row>c<col>` sit at the centre of each slot on the crate floor,
+  where a bottle stands. Seen from the arm looking into the crate:
+    row 1 = nearest to the arm, row 3 = back wall
+    col 1 = left, col 4 = right
+-->
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <!-- Dimensions in metres. "measured" = given by Tim, "assumed" = still to be checked. -->
+
+  <!-- Outer dimensions (measured) -->
+  <xacro:property name="crate_depth" value="0.200"/>   <!-- x -->
+  <xacro:property name="crate_width" value="0.295"/>   <!-- y -->
+  <xacro:property name="crate_height" value="0.240"/>  <!-- z -->
+
+  <!-- Outer wall thickness: not uniform on the real crate, 12 mm as approximation (Tim).
+       The recesses for the bottles in the walls and the dividers between the bottles are
+       deliberately not modelled, so the front and back row of bottles overlap the walls by
+       2 mm in the preview. -->
+  <xacro:property name="crate_wall" value="0.012"/>
+  <!-- Floor (where the bottles stand), derived from the top of the cap being 20 mm below the
+       rim (measured) -->
+  <xacro:property name="cap_below_rim" value="0.020"/>
+  <xacro:property name="crate_floor" value="${crate_height - cap_below_rim - bottle_height}"/>
+
+  <!-- Slot grid: rows centred in the depth; centre of column 2 measured from the left outer
+       side (seen from the arm); 60 mm between bottle centres (all measured) -->
+  <xacro:property name="slot_rows" value="3"/>
+  <xacro:property name="slot_c2_from_left" value="0.120"/>
+  <xacro:property name="slot_pitch_x" value="0.060"/>
+  <xacro:property name="slot_pitch_y" value="0.060"/>
+
+  <!-- Wooden planks near the left and right side: height, width and distance from the outer
+       side of the crate to the outer face of the plank (measured); lying on the rim over the
+       full depth (assumed) -->
+  <xacro:property name="plank_height" value="0.065"/>
+  <xacro:property name="plank_width" value="0.020"/>
+  <xacro:property name="plank_inset" value="0.020"/>
+
+  <material name="crate_plastic">
+    <color rgba="0.20 0.40 0.75 0.5"/>
+  </material>
+  <material name="crate_wood">
+    <color rgba="0.70 0.50 0.25 1.0"/>
+  </material>
+
+  <!-- One box, used as both visual and collision geometry -->
+  <xacro:macro name="james_crate_box" params="size xyz material">
+    <visual>
+      <origin xyz="${xyz}" rpy="0 0 0"/>
+      <geometry>
+        <box size="${size}"/>
+      </geometry>
+      <material name="${material}"/>
+    </visual>
+    <collision>
+      <origin xyz="${xyz}" rpy="0 0 0"/>
+      <geometry>
+        <box size="${size}"/>
+      </geometry>
+    </collision>
+  </xacro:macro>
+
+  <!-- Frame at the centre of a slot on the crate floor, optionally with a bottle in it -->
+  <xacro:macro name="james_crate_slot" params="row col bottle">
+    <link name="slot_r${row}c${col}"/>
+    <joint name="slot_r${row}c${col}_joint" type="fixed">
+      <parent link="crate"/>
+      <child link="slot_r${row}c${col}"/>
+      <origin
+        xyz="${(row - (slot_rows + 1) / 2) * slot_pitch_x} ${crate_width / 2 - slot_c2_from_left - (col - 2) * slot_pitch_y} ${crate_floor}"
+        rpy="0 0 0"/>
+    </joint>
+    <xacro:if value="${bottle}">
+      <xacro:james_bottle name="bottle_r${row}c${col}" parent="slot_r${row}c${col}">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+      </xacro:james_bottle>
+    </xacro:if>
+  </xacro:macro>
+
+  <!-- bottles: a bottle in every slot (preview only); planks: the wooden planks -->
+  <xacro:macro name="james_crate" params="bottles:=false planks:=true">
+    <link name="crate">
+      <!-- Floor -->
+      <xacro:james_crate_box material="crate_plastic"
+        size="${crate_depth} ${crate_width} ${crate_floor}"
+        xyz="0 0 ${crate_floor / 2}"/>
+      <!-- Front wall (arm side) and back wall -->
+      <xacro:james_crate_box material="crate_plastic"
+        size="${crate_wall} ${crate_width} ${crate_height}"
+        xyz="${-(crate_depth - crate_wall) / 2} 0 ${crate_height / 2}"/>
+      <xacro:james_crate_box material="crate_plastic"
+        size="${crate_wall} ${crate_width} ${crate_height}"
+        xyz="${(crate_depth - crate_wall) / 2} 0 ${crate_height / 2}"/>
+      <!-- Left and right wall -->
+      <xacro:james_crate_box material="crate_plastic"
+        size="${crate_depth - 2 * crate_wall} ${crate_wall} ${crate_height}"
+        xyz="0 ${(crate_width - crate_wall) / 2} ${crate_height / 2}"/>
+      <xacro:james_crate_box material="crate_plastic"
+        size="${crate_depth - 2 * crate_wall} ${crate_wall} ${crate_height}"
+        xyz="0 ${-(crate_width - crate_wall) / 2} ${crate_height / 2}"/>
+      <!-- Planks near the left and right side -->
+      <xacro:if value="${planks}">
+        <xacro:james_crate_box material="crate_wood"
+          size="${crate_depth} ${plank_width} ${plank_height}"
+          xyz="0 ${crate_width / 2 - plank_inset - plank_width / 2} ${crate_height + plank_height / 2}"/>
+        <xacro:james_crate_box material="crate_wood"
+          size="${crate_depth} ${plank_width} ${plank_height}"
+          xyz="0 ${-(crate_width / 2 - plank_inset - plank_width / 2)} ${crate_height + plank_height / 2}"/>
+      </xacro:if>
+    </link>
+
+    <xacro:james_crate_slot row="1" col="1" bottle="${bottles}"/>
+    <xacro:james_crate_slot row="1" col="2" bottle="${bottles}"/>
+    <xacro:james_crate_slot row="1" col="3" bottle="${bottles}"/>
+    <xacro:james_crate_slot row="1" col="4" bottle="${bottles}"/>
+    <xacro:james_crate_slot row="2" col="1" bottle="${bottles}"/>
+    <xacro:james_crate_slot row="2" col="2" bottle="${bottles}"/>
+    <xacro:james_crate_slot row="2" col="3" bottle="${bottles}"/>
+    <xacro:james_crate_slot row="2" col="4" bottle="${bottles}"/>
+    <xacro:james_crate_slot row="3" col="1" bottle="${bottles}"/>
+    <xacro:james_crate_slot row="3" col="2" bottle="${bottles}"/>
+    <xacro:james_crate_slot row="3" col="3" bottle="${bottles}"/>
+    <xacro:james_crate_slot row="3" col="4" bottle="${bottles}"/>
+  </xacro:macro>
+
+</robot>
